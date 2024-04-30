@@ -1,0 +1,7 @@
+spring:
+  application:
+    name: TestAssigment
+
+user:
+  age:
+    min: 18
