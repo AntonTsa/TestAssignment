@@ -14,6 +14,8 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
+import ua.anton.tsa.testassigment.exceptions.InvalidPeriodException;
+import ua.anton.tsa.testassigment.exceptions.MinAgeException;
 import ua.anton.tsa.testassigment.service.UsersService;
 import ua.anton.tsa.testassigment.wire.request.CreateUserRequest;
 import ua.anton.tsa.testassigment.wire.request.ModifyUserRequest;
@@ -41,7 +43,7 @@ public class UsersController {
     private final UsersService usersService;
 
     /**
-     * POST maxDate create user
+     * POST to create user
      *
      * @param createUserRequest  {@link CreateUserRequest} with body
      * @param httpServletRequest {@link HttpServletRequest} with full request data
@@ -51,14 +53,14 @@ public class UsersController {
     public ResponseEntity<URI> create(
             @Valid @RequestBody CreateUserRequest createUserRequest,
             HttpServletRequest httpServletRequest
-    ) {
+    ) throws MinAgeException {
         return ResponseEntity.created(
                 URI.create(httpServletRequest.getRequestURI() + URL_SEPARATOR + usersService.create(createUserRequest))
         ).build();
     }
 
     /**
-     * PUT maxDate update all user fields
+     * PUT to update all user fields
      *
      * @param id                 {@link Long} unique identifier
      * @param replaceUserRequest {@link ReplaceUserRequest} with body
@@ -68,13 +70,13 @@ public class UsersController {
     public ResponseEntity<Void> replace(
             @PathVariable Long id,
             @Valid @RequestBody ReplaceUserRequest replaceUserRequest
-    ) {
+    ) throws MinAgeException {
         usersService.replace(id, replaceUserRequest);
         return ResponseEntity.noContent().build();
     }
 
     /**
-     * PATCH maxDate update one/some user fields
+     * PATCH to update one/some user fields
      *
      * @param id                {@link Long} unique identifier
      * @param modifyUserRequest {@link ModifyUserRequest} with body
@@ -84,33 +86,33 @@ public class UsersController {
     public ResponseEntity<Void> modify(
             @PathVariable Long id,
             @Valid @RequestBody ModifyUserRequest modifyUserRequest
-    ) {
+    ) throws MinAgeException {
         usersService.modify(id, modifyUserRequest);
         return ResponseEntity.noContent().build();
     }
 
     /**
-     * GET maxDate retrieve users by birthdate range.
+     * GET to retrieve users by birthdate range.
      *
-     * @param minDate      {@link LocalDate} with minimum searchable date
-     * @param maxDate        {@link LocalDate} with maximum searchable date
+     * @param from      {@link LocalDate} with minimum searchable date
+     * @param to        {@link LocalDate} with maximum searchable date
      * @param pageable  {@link Pageable}
      * @return {@link ResponseEntity} with {@link Page} of {@link RetrieveUsersResponse} objects
      */
     @GetMapping(path = USERS_ENDPOINT)
     public ResponseEntity<Page<RetrieveUsersResponse>> retrieve(
-            @RequestParam(name = "min") @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate minDate,
-            @RequestParam(name = "max") @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate maxDate,
+            @RequestParam(name = "from") @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(name = "to") @NotNull @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @PageableDefault(size = DEFAULT_PAGE_SIZE)
             @SortDefault.SortDefaults(
                     @SortDefault(sort = "id", direction = Sort.Direction.ASC)
             ) Pageable pageable
-    ) {
-        return ResponseEntity.ok(usersService.retrieve(pageable, minDate, maxDate));
+    ) throws InvalidPeriodException {
+        return ResponseEntity.ok(usersService.retrieve(pageable, from, to));
     }
 
     /**
-     * DELETE maxDate delete user
+     * DELETE to delete user
      *
      * @param id {@link Long} unique identifier
      * @return {@link ResponseEntity} without body

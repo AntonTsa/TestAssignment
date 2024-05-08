@@ -7,7 +7,6 @@ import jakarta.validation.Payload;
 
 import java.lang.annotation.*;
 import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 
 /**
  * The annotated element must be a valid local date earlier than current day or null. Accepts {@link CharSequence}.
@@ -30,14 +29,13 @@ public @interface BirthDateNullable {
 
     Class<? extends Payload>[] payload() default {};
 
-    class BirthDateNullableValidator implements ConstraintValidator<BirthDateNullable, CharSequence> {
+    class BirthDateNullableValidator implements ConstraintValidator<BirthDateNullable, LocalDate> {
 
         @Override
-        public boolean isValid(CharSequence value, ConstraintValidatorContext constraintValidatorContext) {
+        public boolean isValid(LocalDate value, ConstraintValidatorContext constraintValidatorContext) {
             if (value != null) {
                 try {
-                    LocalDate birthdate = LocalDate.parse(value);
-                    return birthdate.isBefore(LocalDate.now());
+                    return value.isBefore(LocalDate.now());
                 } catch (Exception e) {
                     return false;
                 }

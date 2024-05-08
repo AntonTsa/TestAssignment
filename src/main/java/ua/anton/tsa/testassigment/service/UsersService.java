@@ -8,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import ua.anton.tsa.testassigment.configuration.UserProperties;
+import ua.anton.tsa.testassigment.exceptions.InvalidPeriodException;
+import ua.anton.tsa.testassigment.exceptions.MinAgeException;
 import ua.anton.tsa.testassigment.mapper.UserMapper;
 import ua.anton.tsa.testassigment.model.User;
 import ua.anton.tsa.testassigment.repo.UsersRepository;
@@ -33,14 +35,12 @@ public class UsersService {
      * @param createUserRequest - {@link CreateUserRequest} create request object
      * @return {@link Long} unique id of the User in storage
      */
-    public Long create(CreateUserRequest createUserRequest) {
+    public Long create(CreateUserRequest createUserRequest) throws MinAgeException {
         User user = mapper.toUser(createUserRequest);
-        if(Period.between(LocalDate.now(), user.getBirthDate()).getYears() >= properties.age().min()) {
+        if(Period.between(user.getBirthDate(), LocalDate.now()).getYears() >= properties.age().min()) {
             return repository.save(user).getId();
         } else {
-            throw new HttpClientErrorException(
-                    HttpStatus.BAD_REQUEST,
-                    "User must be older than " + properties.age().min());
+            throw new MinAgeException("User must be older than " + properties.age().min());
         }
     }
 
@@ -50,9 +50,12 @@ public class UsersService {
      * @param id                 - {@link Long} unique id of the User in storage
      * @param replaceUserRequest - {@link ReplaceUserRequest} replace request object
      */
-    public void replace(Long id, ReplaceUserRequest replaceUserRequest) {
+    public void replace(Long id, ReplaceUserRequest replaceUserRequest) throws MinAgeException {
         if (!repository.existsById(id)) {
             throw new HttpClientErrorException(HttpStatus.NOT_FOUND);
+        }
+        if(Period.between(replaceUserRequest.birthDate(), LocalDate.now()).getYears() < properties.age().min()) {
+            throw new MinAgeException("User must be older than " + properties.age().min());
         }
         repository.save(mapper.toUser(id, replaceUserRequest));
     }
@@ -63,7 +66,11 @@ public class UsersService {
      * @param id                - {@link Long} unique id of the Host in storage
      * @param modifyUserRequest - {@link ModifyUserRequest} modify request object
      */
-    public void modify(Long id, ModifyUserRequest modifyUserRequest) {
+    public void modify(Long id, ModifyUserRequest modifyUserRequest) throws MinAgeException {
+        if(modifyUserRequest.birthDate() != null &&
+                Period.between(modifyUserRequest.birthDate(), LocalDate.now()).getYears() < properties.age().min()) {
+            throw new MinAgeException("User must be older than " + properties.age().min());
+        }
         repository.save(mapper.toUser(
                 repository.findById(id)
                         .orElseThrow(() -> new HttpClientErrorException(HttpStatus.NOT_FOUND)),
@@ -73,18 +80,18 @@ public class UsersService {
 
     /**
      *
-     * @param pageable
-     * @param min
-     * @param max
-     * @return
+     * @param pageable - {@link Pageable}
+     * @param from     - {@link LocalDate} param of min date
+     * @param to       - {@link LocalDate} param of max date
+     * @return {@link Page} of {@link RetrieveUsersResponse} objects
      */
-    public Page<RetrieveUsersResponse> retrieve(Pageable pageable, LocalDate min, LocalDate max) {
-        if(max.isBefore(min)) {
-            throw new HttpClientErrorException(HttpStatus.BAD_REQUEST,
-                    "min date must be less than max date");
+    public Page<RetrieveUsersResponse> retrieve(Pageable pageable, LocalDate from, LocalDate to)
+            throws InvalidPeriodException {
+        if(to.isBefore(from)) {
+            throw new InvalidPeriodException("from date must be less than to date");
         } else {
             return repository
-                    .findAllByBirthDateBetween(min, max, pageable)
+                    .findAllByBirthDateBetween(from, to, pageable)
                     .map(mapper::toRetrieveUsersResponse);
         }
     }

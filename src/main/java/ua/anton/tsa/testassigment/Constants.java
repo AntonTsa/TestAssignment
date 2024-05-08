@@ -2,8 +2,6 @@ package ua.anton.tsa.testassigment;
 
 import lombok.experimental.UtilityClass;
 
-import java.time.LocalDate;
-
 @UtilityClass
 @SuppressWarnings("RedundantModifiersUtilityClassLombok")
 public class Constants {

@@ -1,6 +1,5 @@
 package ua.anton.tsa.testassigment.mapper;
 
-import lombok.RequiredArgsConstructor;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.NullValueCheckStrategy;
@@ -19,16 +18,10 @@ import ua.anton.tsa.testassigment.wire.response.RetrieveUsersResponse;
 public abstract class UserMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(
-            target = "birthDate",
-            expression = "java(LocalDate.parse(createUserRequest.birthDate()))")
     public abstract User toUser(CreateUserRequest createUserRequest);
 
     public abstract RetrieveUsersResponse toRetrieveUsersResponse(User user);
 
-    @Mapping(
-            target = "birthDate",
-            expression = "java(LocalDate.parse(createUserRequest.birthDate()))")
     public abstract User toUser(Long id, ReplaceUserRequest replaceUserRequest);
 
     @Mapping(target = "email", source = "modifyUserRequest.email", defaultExpression = "java(user.getEmail())")
@@ -38,7 +31,7 @@ public abstract class UserMapper {
     @Mapping(target = "phoneNumber", source = "modifyUserRequest.phoneNumber", defaultExpression = "java(user.getPhoneNumber())")
     @Mapping(
             target = "birthDate",
-            expression = "java(LocalDate.parse(modifyUserRequest.birthDate()))",
+            source = "modifyUserRequest.birthDate",
             defaultExpression = "java(user.getBirthDate())"
     )
     public abstract User toUser(User user, ModifyUserRequest modifyUserRequest);

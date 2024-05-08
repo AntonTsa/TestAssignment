@@ -1,4 +1,4 @@
-package ua.anton.tsa.testassigment.controller;
+package ua.anton.tsa.testassigment;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -9,10 +9,10 @@ import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-class PageResponse<T> extends PageImpl<T> {
+public class PageResponse<T> extends PageImpl<T> {
 
     @SuppressWarnings("unused")
-    PageResponse(@JsonProperty("content") List<T> content,
+    public PageResponse(@JsonProperty("content") List<T> content,
                  @JsonProperty("number") Integer number,
                  @JsonProperty("size") Integer size,
                  @JsonProperty("totalElements") Long totalElements,
@@ -20,7 +20,7 @@ class PageResponse<T> extends PageImpl<T> {
         super(content, size > 0 ? PageRequest.of(number, size) : Pageable.unpaged(), totalElements);
     }
 
-    PageResponse(List<T> list, PageRequest pageRequest) {
+    public PageResponse(List<T> list, PageRequest pageRequest) {
         super(list, pageRequest, list.size());
     }
 

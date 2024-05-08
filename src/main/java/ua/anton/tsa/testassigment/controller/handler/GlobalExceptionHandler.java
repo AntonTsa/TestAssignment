@@ -1,5 +1,6 @@
 package ua.anton.tsa.testassigment.controller.handler;
 
+import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -14,6 +15,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import ua.anton.tsa.testassigment.Constants;
+import ua.anton.tsa.testassigment.exceptions.InvalidPeriodException;
+import ua.anton.tsa.testassigment.exceptions.MinAgeException;
 import ua.anton.tsa.testassigment.wire.response.RestContractExceptionResponse;
 
 import java.time.LocalDateTime;
@@ -88,6 +91,54 @@ public class GlobalExceptionHandler {
         return map(
                 HttpStatus.NOT_FOUND,
                 HttpStatus.NOT_FOUND.name(),
+                exception
+        );
+    }
+
+    /**
+     * Exception handler for empty results in storage.
+     *
+     * @param exception {@link ConstraintViolationException} to catch and extract error messages from fields
+     * @return {@link ResponseEntity} with status {@link HttpStatus#BAD_REQUEST},
+     */
+    @ExceptionHandler
+    @SuppressWarnings("unused")
+    public ResponseEntity<RestContractExceptionResponse> handleBindException(ConstraintViolationException exception) {
+        return map(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                exception
+        );
+    }
+
+    /**
+     * Exception handler for empty results in storage.
+     *
+     * @param exception {@link InvalidPeriodException} to catch and extract error messages from fields
+     * @return {@link ResponseEntity} with status {@link HttpStatus#BAD_REQUEST},
+     */
+    @ExceptionHandler
+    @SuppressWarnings("unused")
+    public ResponseEntity<RestContractExceptionResponse> handleBindException(InvalidPeriodException exception) {
+        return map(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
+                exception
+        );
+    }
+
+    /**
+     * Exception handler for empty results in storage.
+     *
+     * @param exception {@link MinAgeException} to catch and extract error messages from fields
+     * @return {@link ResponseEntity} with status {@link HttpStatus#BAD_REQUEST},
+     */
+    @ExceptionHandler
+    @SuppressWarnings("unused")
+    public ResponseEntity<RestContractExceptionResponse> handleBindException(MinAgeException exception) {
+        return map(
+                HttpStatus.BAD_REQUEST,
+                exception.getMessage(),
                 exception
         );
     }
