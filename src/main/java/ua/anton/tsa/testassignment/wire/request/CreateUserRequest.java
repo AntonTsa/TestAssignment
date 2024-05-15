@@ -1,0 +1,26 @@
+package ua.anton.tsa.testassignment.wire.request;
+
+import com.fasterxml.jackson.annotation.JsonRootName;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.Builder;
+import lombok.extern.jackson.Jacksonized;
+import org.springframework.format.annotation.DateTimeFormat;
+import ua.anton.tsa.testassignment.validation.BirthDate;
+import ua.anton.tsa.testassignment.validation.NotBlankNullable;
+import ua.anton.tsa.testassignment.wire.Request;
+
+import java.time.LocalDate;
+
+@Builder
+@Jacksonized
+@JsonRootName("data")
+public record CreateUserRequest(
+        @NotBlank @Email String email,
+        @NotBlank @Size(min = 1, max = 128) String firstName,
+        @NotBlank @Size(min = 1, max = 128) String lastName,
+        @BirthDate @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate birthDate,
+        @NotBlankNullable @Size(min = 1, max = 255) String address,
+        @NotBlankNullable @Size(min = 1, max = 15) String phoneNumber
+) implements Request {}
