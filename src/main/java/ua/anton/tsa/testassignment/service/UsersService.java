@@ -21,6 +21,9 @@ import ua.anton.tsa.testassignment.wire.response.RetrieveUsersResponse;
 import java.time.LocalDate;
 import java.time.Period;
 
+/**
+ * User Service to realize business logic while working with @{@link User} object
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -52,7 +55,7 @@ public class UsersService {
      */
     public void replace(Long id, ReplaceUserRequest replaceUserRequest) throws MinAgeException {
         if (!usersRepository.existsById(id)) {
-            throw new HttpClientErrorException(HttpStatus.NOT_FOUND);
+            throw new HttpClientErrorException(HttpStatus.NOT_FOUND, "User with given id is not found");
         }
         if(Period.between(replaceUserRequest.birthDate(), LocalDate.now()).getYears() < userProperties.age().min()) {
             throw new MinAgeException("User must be older than " + userProperties.age().min());
@@ -77,7 +80,7 @@ public class UsersService {
         }
         usersRepository.save(userMapper.toUser(
                 usersRepository.findById(id)
-                        .orElseThrow(() -> new HttpClientErrorException(HttpStatus.NOT_FOUND)),
+                        .orElseThrow(() -> new HttpClientErrorException(HttpStatus.NOT_FOUND, "User with given id is not found")),
                 modifyUserRequest));
     }
 
@@ -108,7 +111,7 @@ public class UsersService {
 
         usersRepository.delete(
                 usersRepository.findById(id)
-                        .orElseThrow(() -> new HttpClientErrorException(HttpStatus.NOT_FOUND))
+                        .orElseThrow(() -> new HttpClientErrorException(HttpStatus.NOT_FOUND, "User with given id is not found"))
         );
     }
 }

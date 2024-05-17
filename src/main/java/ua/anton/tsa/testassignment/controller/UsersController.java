@@ -5,6 +5,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -17,7 +18,9 @@ import org.springframework.web.bind.annotation.*;
 import ua.anton.tsa.testassignment.exceptions.InvalidPeriodException;
 import ua.anton.tsa.testassignment.exceptions.MinAgeException;
 import ua.anton.tsa.testassignment.service.UsersService;
-import ua.anton.tsa.testassignment.validation.ValidParams;
+import ua.anton.tsa.testassignment.validation.BirthDate;
+import ua.anton.tsa.testassignment.validation.Email;
+import ua.anton.tsa.testassignment.validation.NotBlankNullable;
 import ua.anton.tsa.testassignment.wire.request.CreateUserRequest;
 import ua.anton.tsa.testassignment.wire.request.ModifyUserRequest;
 import ua.anton.tsa.testassignment.wire.request.ReplaceUserRequest;
@@ -33,6 +36,7 @@ import static ua.anton.tsa.testassignment.Constants.URL_SEPARATOR;
 /**
  * Entry point for Users endpoint APIs.
  */
+@Slf4j
 @Validated
 @RestController
 @RequiredArgsConstructor
@@ -47,8 +51,8 @@ public class UsersController {
     /**
      * POST to create user
      *
-     * @param createUserRequest  {@link CreateUserRequest} with body
-     * @param httpServletRequest {@link HttpServletRequest} with full request data
+     * @param createUserRequest  - {@link CreateUserRequest} with body
+     * @param httpServletRequest - {@link HttpServletRequest} with full request data
      * @return {@link ResponseEntity} with trace and location headers
      */
     @PostMapping(path = USERS_ENDPOINT)
@@ -64,8 +68,8 @@ public class UsersController {
     /**
      * PUT to update all user fields
      *
-     * @param id                 {@link Long} unique identifier
-     * @param replaceUserRequest {@link ReplaceUserRequest} with body
+     * @param id                 - {@link Long} unique identifier
+     * @param replaceUserRequest - {@link ReplaceUserRequest} with body
      * @return {@link ResponseEntity} of {@link Void}
      */
     @PutMapping(path = USER_ENDPOINT)
@@ -88,9 +92,11 @@ public class UsersController {
     @PatchMapping( path = USER_ENDPOINT)
     public ResponseEntity<Void> modify(
             @PathVariable Long id,
-            @Valid @RequestBody @ValidParams ModifyUserRequest modifyUserRequest
-            // Use LinkedHashMap to handle JSON structure
+            @Valid @RequestBody @BirthDate @Email
+            @NotBlankNullable(keys = {"firstName", "lastName", "address", "phoneNumber"})
+            ModifyUserRequest modifyUserRequest
     ) throws MinAgeException {
+        log.info(String.valueOf(modifyUserRequest.entrySet().size()));
         usersService.modify(id, modifyUserRequest);
         return ResponseEntity.noContent().build();
     }
@@ -98,9 +104,9 @@ public class UsersController {
     /**
      * GET to retrieve users by birthdate range.
      *
-     * @param from      {@link LocalDate} with minimum searchable date
-     * @param to        {@link LocalDate} with maximum searchable date
-     * @param pageable  {@link Pageable}
+     * @param from      - {@link LocalDate} with minimum searchable date
+     * @param to        - {@link LocalDate} with maximum searchable date
+     * @param pageable  - {@link Pageable} with page params
      * @return {@link ResponseEntity} with {@link Page} of {@link RetrieveUsersResponse} objects
      */
     @GetMapping(path = USERS_ENDPOINT)
@@ -118,7 +124,7 @@ public class UsersController {
     /**
      * DELETE to delete user
      *
-     * @param id {@link Long} unique identifier
+     * @param id - {@link Long} unique identifier
      * @return {@link ResponseEntity} without body
      */
     @DeleteMapping(path = USER_ENDPOINT)

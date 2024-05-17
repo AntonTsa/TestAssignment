@@ -2,6 +2,9 @@ package ua.anton.tsa.testassignment;
 
 import lombok.experimental.UtilityClass;
 
+/**
+ * Utility class for saving constants
+ */
 @UtilityClass
 @SuppressWarnings("RedundantModifiersUtilityClassLombok")
 public class Constants {

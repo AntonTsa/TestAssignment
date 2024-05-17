@@ -8,11 +8,15 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.extern.jackson.Jacksonized;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import ua.anton.tsa.testassignment.wire.Response;
 
 import java.util.List;
 
+/**
+ * A class for formatting GET response
+ *
+ * @param <T> - param of the response
+ */
 @Getter
 @Builder
 @Jacksonized
@@ -21,7 +25,7 @@ import java.util.List;
 @NoArgsConstructor
 public class PageResponse<T> implements Response {
     @JsonProperty("data") private List<T> content;
-    @JsonProperty("page_info") private Pageable pageable;
+    @JsonProperty("page_info") private Object pageable;
     private boolean first;
     private boolean last;
     private long totalElements;

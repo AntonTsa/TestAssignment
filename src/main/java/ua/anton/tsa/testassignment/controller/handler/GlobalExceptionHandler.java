@@ -1,6 +1,5 @@
 package ua.anton.tsa.testassignment.controller.handler;
 
-import com.fasterxml.jackson.annotation.JsonRootName;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,8 +19,6 @@ import ua.anton.tsa.testassignment.exceptions.InvalidPeriodException;
 import ua.anton.tsa.testassignment.exceptions.MinAgeException;
 import ua.anton.tsa.testassignment.wire.response.RestContractExceptionResponse;
 
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -63,6 +60,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler
     @SuppressWarnings("unused")
     public ResponseEntity<RestContractExceptionResponse> handleBindException(MethodArgumentNotValidException exception) {
+        log.info(exception.getMessage());
         return map(
                 exception.getBindingResult()
                         .getFieldErrors()
@@ -90,7 +88,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<RestContractExceptionResponse> handleBindException(EmptyResultDataAccessException exception) {
         return map(
                 HttpStatus.NOT_FOUND,
-                HttpStatus.NOT_FOUND.name(),
+                exception.getMessage(),
                 exception
         );
     }
@@ -106,7 +104,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<RestContractExceptionResponse> handleBindException(ConstraintViolationException exception) {
         return map(
                 HttpStatus.BAD_REQUEST,
-                exception.getMessage(),
+                exception.getMessage().replace("modify.modifyUserRequest.", ""),
                 exception
         );
     }
@@ -173,7 +171,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler
     @SuppressWarnings("unused")
     public ResponseEntity<RestContractExceptionResponse> handleBindException(HttpMessageNotReadableException exception) {
-        return map(HttpStatus.BAD_REQUEST, "Invalid request body received", exception);
+        return map(
+                HttpStatus.BAD_REQUEST,
+                "Invalid request body received",
+                exception);
     }
 
     /**
@@ -219,8 +220,9 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(httpStatus)
                 .body(RestContractExceptionResponse.builder()
                         .statusCode(httpStatus.value())
-                        .error(reasonPhrase)
-                        .details(message)
+                        .reasonPhrase(reasonPhrase)
+                        .error(message)
+                        .details(throwable.getMessage())
                         .build());
     }
 

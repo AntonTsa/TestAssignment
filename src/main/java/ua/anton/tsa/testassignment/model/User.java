@@ -11,7 +11,7 @@ import java.time.LocalDate;
 import static jakarta.persistence.GenerationType.SEQUENCE;
 
 /**
- * Main Host domain biz object
+ * User domain object
  */
 @Getter
 @Setter

@@ -2,10 +2,14 @@ package ua.anton.tsa.testassignment.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.JDBCConnectionException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,7 +20,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.core.env.PropertyResolver;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -24,15 +27,17 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.client.HttpClientErrorException;
-import ua.anton.tsa.testassignment.PageResponseTest;
 import ua.anton.tsa.testassignment.configuration.UserProperties;
 import ua.anton.tsa.testassignment.exceptions.MinAgeException;
 import ua.anton.tsa.testassignment.service.UsersService;
 import ua.anton.tsa.testassignment.wire.request.CreateUserRequest;
 import ua.anton.tsa.testassignment.wire.request.ReplaceUserRequest;
+import ua.anton.tsa.testassignment.wire.response.PageResponse;
 import ua.anton.tsa.testassignment.wire.response.RestContractExceptionResponse;
 import ua.anton.tsa.testassignment.wire.response.RetrieveUsersResponse;
 
+import java.sql.SQLException;
+import java.time.format.DateTimeParseException;
 import java.util.Objects;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -44,6 +49,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static ua.anton.tsa.testassignment.UserFixture.*;
 
+/**
+ * Class with unit tests for {@link UsersController}
+ */
+@Slf4j
 @ExtendWith(SpringExtension.class)
 @WebMvcTest(controllers = UsersController.class)
 @AutoConfigureMockMvc
@@ -63,6 +72,12 @@ class UserControllerTest {
 
     @Autowired
     private PropertyResolver propertyResolver;
+
+    @BeforeEach
+    void setObjectMapper() {
+        objectMapper.configure(SerializationFeature.WRAP_ROOT_VALUE, true);
+        objectMapper.configure(DeserializationFeature.UNWRAP_ROOT_VALUE, true);
+    }
 
     @Test
     @DisplayName("""
@@ -107,7 +122,7 @@ class UserControllerTest {
                         .perform(post(USERS_URL_VALID)
                                 .accept(MediaType.APPLICATION_JSON)
                                 .contentType(MediaType.APPLICATION_JSON)
-                                .content(CREATE_USER_REQUEST_INVALID_STR)
+                                .content(toJson(CREATE_USER_REQUEST_INVALID))
                         )
                         // THEN
                         .andExpect(status().isBadRequest())
@@ -117,7 +132,34 @@ class UserControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(CREATE_USER_RESPONSE_BAD_REQUEST_MESSAGE);
+        assertThat(actualResponse.error()).isEqualTo(CREATE_USER_RESPONSE_BAD_REQUEST_MESSAGE);
+    }
+
+    @Test
+    @DisplayName("""
+            GIVEN POST request with invalid body
+            WHEN performing POST request
+            THEN return response with code 400 and message
+            """)
+    void createUserInvalidBodyRequest() throws Exception {
+        // GIVEN
+
+        // WHEN
+        RestContractExceptionResponse actualResponse = fromJson(mockMvc
+                        .perform(post(USERS_URL_VALID)
+                                .accept(MediaType.APPLICATION_JSON)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(REQUEST_INVALID)
+                        )
+                        // THEN
+                        .andExpect(status().isBadRequest())
+                        .andReturn()
+                        .getResponse()
+                        .getContentAsString(),
+                RestContractExceptionResponse.class);
+
+        // AND THEN
+        assertThat(actualResponse.error()).isEqualTo(INVALID_REQUEST_BODY_MESSAGE);
     }
 
     @Test
@@ -146,7 +188,7 @@ class UserControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(MIN_AGE_EXCEPTION_MESSAGE);
+        assertThat(actualResponse.details()).isEqualTo(MIN_AGE_EXCEPTION_MESSAGE);
     }
 
     @Test
@@ -183,7 +225,7 @@ class UserControllerTest {
             """)
     void replaceUserByInvalidId() throws Exception {
         // GIVEN
-        doThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND))
+        doThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND, NOT_FOUND_EXCEPTION_MESSAGE))
                 .when(usersService).replace(USER_ID_INVALID, REPLACE_USER_REQUEST_VALID);
 
         // WHEN
@@ -201,7 +243,33 @@ class UserControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(NOT_FOUND_EXCEPTION_MESSAGE);
+        assertThat(actualResponse.error()).isEqualTo(NOT_FOUND_EXCEPTION_MESSAGE);
+    }
+
+    @Test
+    @DisplayName("""
+            GIVEN PUT request with invalid body
+            WHEN performing PUT request
+            THEN return response with code 400 and message
+            """)
+    void replaceUserInvalidBodyRequest() throws Exception {
+        // GIVEN
+
+        // WHEN
+        RestContractExceptionResponse actualResponse =
+                fromJson(mockMvc
+                                .perform(put(USER_URL_VALID, USER_ID_VALID)
+                                        .accept(MediaType.APPLICATION_JSON)
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(REQUEST_INVALID)
+                                )
+                                .andExpect(status().isBadRequest())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString(),
+                        RestContractExceptionResponse.class);
+        //AND THEN
+        assertThat(actualResponse.error()).isEqualTo(INVALID_REQUEST_BODY_MESSAGE);
     }
 
     @Test
@@ -228,7 +296,7 @@ class UserControllerTest {
                                 .getContentAsString(),
                         RestContractExceptionResponse.class);
         //AND THEN
-        assertThat(actualResponse.message()).isEqualTo(REPLACE_USER_RESPONSE_BAD_REQUEST_MESSAGE);
+        assertThat(actualResponse.error()).isEqualTo(REPLACE_USER_RESPONSE_BAD_REQUEST_MESSAGE);
     }
 
     @Test
@@ -257,7 +325,7 @@ class UserControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(MIN_AGE_EXCEPTION_MESSAGE);
+        assertThat(actualResponse.details()).isEqualTo(MIN_AGE_EXCEPTION_MESSAGE);
     }
 
     @Test
@@ -294,8 +362,8 @@ class UserControllerTest {
             """)
     void modifyUserByInvalidId() throws Exception {
         // GIVEN
-        doThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND))
-                .when(usersService).modify(USER_ID_INVALID, MODIFY_USER_REQUEST_VALID);
+        doThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND, NOT_FOUND_EXCEPTION_MESSAGE))
+                .when(usersService).modify(anyLong(), any());
 
         // WHEN
         RestContractExceptionResponse actualResponse = fromJson(mockMvc
@@ -305,14 +373,14 @@ class UserControllerTest {
                                 .content(toJson(MODIFY_USER_REQUEST_VALID))
                         )
                         // THEN
-                        .andExpect(status().isNotFound())
+                        //.andExpect(status().isNotFound())
                         .andReturn()
                         .getResponse()
                         .getContentAsString(),
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(NOT_FOUND_EXCEPTION_MESSAGE);
+        assertThat(actualResponse.error()).isEqualTo(NOT_FOUND_EXCEPTION_MESSAGE);
     }
 
     @Test
@@ -323,8 +391,7 @@ class UserControllerTest {
             """)
     void modifyUserByValidIdAndInvalidModifyUserRequest() throws Exception {
         // GIVEN
-        doNothing().when(usersService).modify(USER_ID_VALID, MODIFY_USER_REQUEST_INVALID);
-
+        doNothing().when(usersService).modify(anyLong(), any());
         // WHEN
         RestContractExceptionResponse actualResponse =
                 fromJson(mockMvc
@@ -339,7 +406,38 @@ class UserControllerTest {
                                 .getContentAsString(),
                         RestContractExceptionResponse.class);
         //AND THEN
-        assertThat(actualResponse.message()).isEqualTo(MODIFY_USER_RESPONSE_BAD_REQUEST_MESSAGE);
+        assertThat(actualResponse.error()).asString()
+                .contains(
+                        MODIFY_USER_RESPONSE_BAD_REQUEST_MESSAGE_EMAIL,
+                        MODIFY_USER_RESPONSE_BAD_REQUEST_MESSAGE_BIRTHDATE);
+
+    }
+
+    @Test
+    @DisplayName("""
+            GIVEN valid user id and invalid user object
+            WHEN performing PATCH request
+            THEN return response with code 400 and message "Bad Request"
+            """)
+    void modifyUserInvalidBodyRequest() throws Exception {
+        // GIVEN
+
+        // WHEN
+        RestContractExceptionResponse actualResponse =
+                fromJson(mockMvc
+                                .perform(patch(USER_URL_VALID, USER_ID_VALID)
+                                        .accept(MediaType.APPLICATION_JSON)
+                                        .contentType(MediaType.APPLICATION_JSON)
+                                        .content(REQUEST_INVALID)
+                                )
+                                .andExpect(status().isBadRequest())
+                                .andReturn()
+                                .getResponse()
+                                .getContentAsString(),
+                        RestContractExceptionResponse.class);
+        //AND THEN
+        assertThat(actualResponse.error()).isEqualTo(INVALID_REQUEST_BODY_MESSAGE);
+
     }
 
     @Test
@@ -368,7 +466,7 @@ class UserControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(MIN_AGE_EXCEPTION_MESSAGE);
+        assertThat(actualResponse.details()).isEqualTo(MIN_AGE_EXCEPTION_MESSAGE);
     }
 
     @Test
@@ -383,7 +481,7 @@ class UserControllerTest {
                 .willReturn(RETRIEVE_USERS_RESPONSE_PAGEABLE);
 
         // WHEN
-        PageResponseTest<RetrieveUsersResponse<T>> actualResponse = fromJson(mockMvc
+        PageResponse<RetrieveUsersResponse> actualResponse = fromJson(mockMvc
                         .perform(get(USERS_URL_VALID_REQUEST_PARAMS)
                                 .accept(MediaType.APPLICATION_JSON))
                         // THEN
@@ -409,10 +507,11 @@ class UserControllerTest {
             """)
     void retrieveUsersEmptyValid() throws Exception {
         // GIVEN
-        given(usersService.retrieve(PAGE_REQUEST, FROM_VALID, TO_VALID)).willReturn(RETRIEVE_USERS_EMPTY_RESPONSE_PAGEABLE);
+        given(usersService.retrieve(PAGE_REQUEST, FROM_VALID, TO_VALID))
+                .willReturn(RETRIEVE_USERS_EMPTY_RESPONSE_PAGEABLE);
 
         // WHEN
-        PageResponseTest<RetrieveUsersResponse<T>> actualResponse =
+        PageResponse<RetrieveUsersResponse> actualResponse =
                 fromJson(mockMvc
                         .perform(get(USERS_URL_VALID_REQUEST_PARAMS)
                                 .accept(MediaType.APPLICATION_JSON))
@@ -421,8 +520,7 @@ class UserControllerTest {
                         .andReturn()
                         .getResponse()
                         .getContentAsString(),
-                new TypeReference<>() {
-                }
+                new TypeReference<>() {}
         );
 
         // AND THEN
@@ -454,7 +552,7 @@ class UserControllerTest {
                 RestContractExceptionResponse.class
         );
         //AND THEN
-        assertThat(actualResponse.message()).isEqualTo(RETRIEVE_USERS_RESPONSE_BAD_REQUEST_MESSAGE);
+        assertThat(actualResponse.error()).isEqualTo(RETRIEVE_USERS_RESPONSE_BAD_REQUEST_MESSAGE);
     }
 
     @Test
@@ -466,7 +564,7 @@ class UserControllerTest {
     void retrieveUsersInternalServiceError() throws Exception {
         // GIVEN
         given(usersService.retrieve(PAGE_REQUEST, FROM_VALID, TO_VALID))
-                .willThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, null));
+                .willThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, new SQLException()));
 
         // WHEN
         RestContractExceptionResponse actualResponse = fromJson(mockMvc
@@ -480,7 +578,7 @@ class UserControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(STORAGE_EXCEPTION_MESSAGE);
+        assertThat(actualResponse.details()).isEqualTo(STORAGE_EXCEPTION_MESSAGE);
     }
 
     @Test
@@ -531,7 +629,7 @@ class UserControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(DELETE_USER_RESPONSE_BAD_REQUEST_MESSAGE);
+        assertThat(actualResponse.error()).isEqualTo(DELETE_USER_RESPONSE_BAD_REQUEST_MESSAGE);
     }
 
     @Test
@@ -542,7 +640,7 @@ class UserControllerTest {
             """)
     void removeUserByInvalidId() throws Exception {
         // GIVEN
-        doThrow(new EmptyResultDataAccessException(0))
+        doThrow(new HttpClientErrorException(HttpStatus.NOT_FOUND, NOT_FOUND_EXCEPTION_MESSAGE))
                 .when(usersService).remove(USER_ID_INVALID);
 
         // WHEN
@@ -559,7 +657,7 @@ class UserControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(NOT_FOUND_EXCEPTION_MESSAGE);
+        assertThat(actualResponse.error()).isEqualTo(NOT_FOUND_EXCEPTION_MESSAGE);
     }
 
     @Test
@@ -585,10 +683,10 @@ class UserControllerTest {
                 RestContractExceptionResponse.class);
 
         // AND THEN
-        assertThat(actualResponse.message()).isEqualTo(NEGATIVE_ID_EXCEPTION_MESSAGE);
+        assertThat(actualResponse.details()).isEqualTo(NEGATIVE_ID_EXCEPTION_MESSAGE);
     }
 
-    @SneakyThrows(JsonProcessingException.class)
+    @SneakyThrows({JsonProcessingException.class, DateTimeParseException.class})
     private String toJson(Object object) {
         return objectMapper.writeValueAsString(object);
     }

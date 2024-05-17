@@ -8,6 +8,9 @@ import ua.anton.tsa.testassignment.model.User;
 
 import java.time.LocalDate;
 
+/**
+ * Users Repository
+ */
 @Repository
 public interface UsersRepository extends JpaRepository<User, Long> {
     Page<User> findAllByBirthDateBetween(LocalDate from, LocalDate to, Pageable pageable);

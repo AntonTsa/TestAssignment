@@ -24,6 +24,7 @@ import ua.anton.tsa.testassignment.mapper.UserMapperImpl;
 import ua.anton.tsa.testassignment.repo.UsersRepository;
 import ua.anton.tsa.testassignment.wire.response.RetrieveUsersResponse;
 
+import java.sql.SQLException;
 import java.util.Optional;
 
 import static java.lang.Boolean.FALSE;
@@ -35,6 +36,9 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 import static ua.anton.tsa.testassignment.UserFixture.*;
 
+/**
+ * Class with unit tests for {@link UsersService}
+ */
 @SpringJUnitConfig(
         classes = {
                 UsersService.class,
@@ -110,7 +114,7 @@ class UserServiceTest {
         // GIVEN
         given(userMapper.toUser(CREATE_USER_REQUEST_VALID)).willReturn(USER_MAPPED_VALID);
         given(usersRepository.save(USER_MAPPED_VALID))
-                .willThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, null));
+                .willThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, new SQLException()));
 
         // WHEN
         Exception actualException = assertThrows(
@@ -191,7 +195,7 @@ class UserServiceTest {
     void replaceUserJDBCException() {
         // GIVEN
         given(usersRepository.existsById(USER_ID_VALID))
-                .willThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, null));
+                .willThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, new SQLException()));
 
         // WHEN
         Exception actualException = assertThrows(
@@ -228,7 +232,7 @@ class UserServiceTest {
             """)
     void modifyUserInvalidId() {
         // GIVEN
-        given(usersRepository.findById(USER_ID_VALID)).willReturn(null);
+        given(usersRepository.findById(USER_ID_VALID)).willReturn(Optional.empty());
 
         // WHEN
         HttpClientErrorException exception = assertThrows(
@@ -267,7 +271,8 @@ class UserServiceTest {
             """)
     void modifyUserJDBCException() {
         // GIVEN
-        given(usersRepository.findById(USER_ID_VALID)).willThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, null));
+        given(usersRepository.findById(USER_ID_VALID))
+                .willThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, new SQLException()));
 
         // WHEN
         Exception actualException = assertThrows(
@@ -278,7 +283,6 @@ class UserServiceTest {
         assertThat(actualException.getMessage()).isEqualTo(STORAGE_EXCEPTION_MESSAGE);
     }
 
-
     @Test
     @SneakyThrows
     @DisplayName("""
@@ -288,13 +292,13 @@ class UserServiceTest {
             """)
     void retrieveUsersValid() {
         // GIVEN
-        given(usersRepository.findAllByBirthDateBetween(any(), any(), any())).willReturn(USERS_PAGE_RESPONSE);
+        given(usersRepository.findAllByBirthDateBetween(any(), any(), any())).willReturn(USERS_PAGE);
         given(userMapper.toRetrieveUsersResponse(USERS_PAGE_RESPONSE.getContent().getFirst()))
                 .willReturn(FIRST_RETRIEVE_USER_RESPONSE);
         given(userMapper.toRetrieveUsersResponse(USERS_PAGE_RESPONSE.getContent().getLast()))
                 .willReturn(SECOND_RETRIEVE_USER_RESPONSE);
         // WHEN
-        Page<RetrieveUsersResponse<T>> actualResponse = usersService.retrieve(PAGE_REQUEST, FROM_VALID, FROM_INVALID);
+        Page<RetrieveUsersResponse> actualResponse = usersService.retrieve(PAGE_REQUEST, FROM_VALID, FROM_INVALID);
 
         // THEN
         assertThat(actualResponse.getTotalElements()).isEqualTo(RETRIEVE_USERS_RESPONSE_PAGEABLE.getTotalElements());
@@ -331,7 +335,7 @@ class UserServiceTest {
     void retrieveUsersJDBCException() {
         // GIVEN
         given(usersRepository.findAllByBirthDateBetween(any(),any(),any()))
-                .willThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, null));
+                .willThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, new SQLException()));
 
         // WHEN
         Exception actualException = assertThrows(
@@ -350,13 +354,15 @@ class UserServiceTest {
             """)
     void removeUserValid() {
         // GIVEN
-        doNothing().when(usersRepository).deleteById(USER_ID_VALID);
+        given(usersRepository.findById(anyLong())).willReturn(Optional.of(USER_VALID));
+        doNothing().when(usersRepository).delete(any());
 
         // WHEN
         usersService.remove(USER_ID_VALID);
 
         // THEN
-        verify(usersRepository).deleteById(USER_ID_VALID);
+        verify(usersRepository).findById(USER_ID_VALID);
+        verify(usersRepository).delete(USER_VALID);
     }
 
     @Test
@@ -367,8 +373,8 @@ class UserServiceTest {
             """)
     void removeUserJDBCException() {
         // GIVEN
-        doThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, null))
-                .when(usersRepository).deleteById(USER_ID_VALID);
+        doThrow(new JDBCConnectionException(STORAGE_EXCEPTION_MESSAGE, new SQLException()))
+                .when(usersRepository).findById(USER_ID_VALID);
 
         // WHEN
         Exception actualException = assertThrows(
